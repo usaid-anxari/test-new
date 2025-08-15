@@ -1,0 +1,7 @@
+import { Injectable } from '@nestjs/common'
+import { PrismaService } from '../../prisma/prisma.service'
+@Injectable()
+export class AnalyticsService {
+  constructor(private prisma: PrismaService) {}
+  track(e: { tenantId: string, type: string, meta?: any }) { return this.prisma.analyticsEvent.create({ data: e }) }
+}

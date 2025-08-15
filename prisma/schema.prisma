@@ -1,0 +1,214 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  memberships  Membership[]
+  apiKeys      ApiKey[]
+}
+
+model Tenant {
+  id              String           @id @default(cuid())
+  slug            String           @unique
+  name            String
+  logoUrl         String?
+  brandPrimaryHex String?
+  brandAccentHex  String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  members         Membership[]
+  widgets         Widget[]
+  reviews         Review[]
+  videos          VideoAsset[]
+  billing         BillingAccount?
+  integrations    Integration[]
+  apiKeys         ApiKey[]
+  analyticsEvents AnalyticsEvent[]
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([tenantId, userId])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  HIDDEN
+}
+
+enum WidgetLayout {
+  GRID
+  CAROUSEL
+  SPOTLIGHT
+  FLOATING_BUBBLE
+}
+
+enum IntegrationKind {
+  SHOPIFY
+  WORDPRESS
+}
+
+enum BillingState {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID_HIDDEN
+  DELETED
+}
+
+model Widget {
+  id        String       @id @default(cuid())
+  tenantId  String
+  name      String
+  layout    WidgetLayout
+  themeJson Json?
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  tenant    Tenant       @relation(fields: [tenantId], references: [id])
+  reviews   Review[]
+}
+
+model VideoAsset {
+  id        String   @id @default(cuid())
+  tenantId  String
+  s3Key     String   @unique
+  url       String
+  sizeBytes BigInt
+  width     Int?
+  height    Int?
+  format    String?
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  reviews   Review[]
+}
+
+model Review {
+  id          String       @id @default(cuid())
+  tenantId    String
+  widgetId    String?
+  title       String?
+  authorName  String?
+  authorEmail String?
+  consent     Boolean      @default(false)
+  status      ReviewStatus @default(PENDING)
+  videoId     String?
+  previewUrl  String?
+  durationSec Int?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  widget      Widget?      @relation(fields: [widgetId], references: [id])
+  video       VideoAsset?  @relation(fields: [videoId], references: [id])
+}
+
+model BillingAccount {
+  id                String         @id @default(cuid())
+  tenantId          String         @unique
+  stripeCustomerId  String         @unique
+  state             BillingState   @default(ACTIVE)
+  unpaidSince       DateTime?
+  lastInvoiceAt     DateTime?
+  deleteAfter       DateTime?
+  storageLimitGB    Int            @default(10)
+  activeWidgetLimit Int            @default(3)
+  tenant            Tenant         @relation(fields: [tenantId], references: [id])
+  subscriptions     Subscription[]
+  invoices          Invoice[]
+  usage             UsageRecord[]
+}
+
+model Subscription {
+  id               String         @id @default(cuid())
+  billingAccountId String
+  stripeSubId      String         @unique
+  priceId          String
+  status           String
+  currentPeriodEnd DateTime
+  createdAt        DateTime       @default(now())
+  billingAccount   BillingAccount @relation(fields: [billingAccountId], references: [id])
+}
+
+model Invoice {
+  id               String         @id @default(cuid())
+  billingAccountId String
+  stripeInvoiceId  String         @unique
+  amountDueCents   Int
+  amountPaidCents  Int            @default(0)
+  status           String
+  createdAt        DateTime       @default(now())
+  billingAccount   BillingAccount @relation(fields: [billingAccountId], references: [id])
+}
+
+model UsageRecord {
+  id               String         @id @default(cuid())
+  billingAccountId String
+  periodStart      DateTime
+  periodEnd        DateTime
+  storageBytes     BigInt
+  widgetViews      Int            @default(0)
+  reviewsCount     Int            @default(0)
+  createdAt        DateTime       @default(now())
+  billingAccount   BillingAccount @relation(fields: [billingAccountId], references: [id])
+}
+
+model ApiKey {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  keyHash   String
+  label     String?
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+}
+
+model Integration {
+  id          String          @id @default(cuid())
+  tenantId    String
+  kind        IntegrationKind
+  shopDomain  String?
+  accessToken String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  tenantId  String
+  type      String
+  meta      Json?
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+}
