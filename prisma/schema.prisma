@@ -19,22 +19,24 @@ model User {
 }
 
 model Tenant {
-  id              String           @id @default(cuid())
-  slug            String           @unique
-  name            String
-  logoUrl         String?
-  brandPrimaryHex String?
-  brandAccentHex  String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  members         Membership[]
-  widgets         Widget[]
-  reviews         Review[]
-  videos          VideoAsset[]
-  billing         BillingAccount?
-  integrations    Integration[]
-  apiKeys         ApiKey[]
-  analyticsEvents AnalyticsEvent[]
+  id               String           @id @default(cuid())
+  slug             String           @unique
+  name             String
+  logoUrl          String?
+  brandPrimaryHex  String?
+  brandAccentHex   String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  members          Membership[]
+  widgets          Widget[]
+  reviews          Review[]
+  videos           VideoAsset[]
+  audio            AudioAsset[]
+  billing          BillingAccount?
+  integrations     Integration[]
+  allowTextReviews Boolean          @default(false)
+  apiKeys          ApiKey[]
+  analyticsEvents  AnalyticsEvent[]
 }
 
 model Membership {
@@ -111,6 +113,20 @@ model VideoAsset {
   reviews   Review[]
 }
 
+model AudioAsset {
+  id        String   @id @default(cuid())
+  tenantId  String
+  s3Key     String   @unique
+  url       String
+  sizeBytes BigInt
+  width     Int?
+  height    Int?
+  format    String?
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  reviews   Review[]
+}
+
 model Review {
   id          String       @id @default(cuid())
   tenantId    String
@@ -121,13 +137,17 @@ model Review {
   consent     Boolean      @default(false)
   status      ReviewStatus @default(PENDING)
   videoId     String?
+  audioId     String?
+  text        String?
+  textStatus  String       @default("PENDING")
   previewUrl  String?
   durationSec Int?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  tenant      Tenant       @relation(fields: [tenantId], references: [id])
-  widget      Widget?      @relation(fields: [widgetId], references: [id])
-  video       VideoAsset?  @relation(fields: [videoId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  widget      Widget?     @relation(fields: [widgetId], references: [id])
+  video       VideoAsset? @relation(fields: [videoId], references: [id])
+  audio       AudioAsset? @relation(fields: [audioId], references: [id])
 }
 
 model BillingAccount {

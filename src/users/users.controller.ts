@@ -2,7 +2,7 @@ import { Controller, Post, Body, Get, Param } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 
-@Controller('users')
+@Controller('api/v1/users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -11,8 +11,8 @@ export class UsersController {
     return this.usersService.createUser(dto);
   }
 
-  @Get(':email')
-  async getUser(@Param('email') email: string) {
-    return this.usersService.findByEmail(email);
+  @Get(':id')
+  async getUser(@Param('id') id: string) {
+    return this.usersService.findById(id);
   }
 }

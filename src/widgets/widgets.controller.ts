@@ -6,7 +6,10 @@ export class WidgetsController {
   constructor(private svc: WidgetsService) {}
 
   @Get(':tenantSlug')
-  feed(@Param('tenantSlug') slug: string, @Query('layout') layout?: string) {
+  feed(
+    @Param('tenantSlug') slug: string,
+    @Query('layout') layout?: 'GRID' | 'CAROUSEL' | 'SPOTLIGHT' | 'WALL',
+  ) {
     return this.svc.widgetFeed(slug, layout)
   }
 }
