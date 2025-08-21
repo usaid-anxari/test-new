@@ -7,7 +7,7 @@ export class WidgetsService {
 
   async widgetFeed(
     slug: string,
-    layout: 'GRID' | 'CAROUSEL' | 'SPOTLIGHT' | 'WALL' = 'GRID',
+    layout: 'GRID' | 'CAROUSEL' | 'SPOTLIGHT' | 'WALL' | 'FLOATING_BUBBLE' = 'GRID',
   ) {
     const tenant = await this.prisma.tenant.findUnique({ where: { slug } });
     if (!tenant) throw new NotFoundException('Tenant not found');
@@ -51,6 +51,8 @@ export class WidgetsService {
         return this.buildSpotlight(tenant, items);
       case 'WALL':
         return this.buildWall(tenant, items);
+      case 'FLOATING_BUBBLE':
+        return this.buildBubble(tenant, items);
       case 'GRID':
       default:
         return this.buildGrid(tenant, items);
@@ -87,6 +89,15 @@ export class WidgetsService {
       type: 'WALL',
       tenant: this.tenantMeta(tenant),
       items, // frontend will render as masonry / continuous wall
+    };
+  }
+
+  private buildBubble(tenant: any, items: any[]) {
+    return {
+      type: 'FLOATING_BUBBLE',
+      tenant: this.tenantMeta(tenant),
+      featured: items[0] || null,
+      count: items.length,
     };
   }
 

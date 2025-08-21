@@ -19,6 +19,7 @@ import stripeConfig from './config/stripe.config'
 import awsConfig from './config/aws.config'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
+import { EmbedsModule } from './modules/embeds/embeds.module'
 
 @Module({
   controllers:[AppController],
@@ -38,6 +39,7 @@ import { AppService } from './app.service'
     BillingModule,
     WordpressModule,
     ShopifyModule,
+    EmbedsModule,
   ],
 })
 export class AppModule {}

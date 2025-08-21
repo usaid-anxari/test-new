@@ -8,7 +8,7 @@ export class WidgetsController {
   @Get(':tenantSlug')
   feed(
     @Param('tenantSlug') slug: string,
-    @Query('layout') layout?: 'GRID' | 'CAROUSEL' | 'SPOTLIGHT' | 'WALL',
+    @Query('layout') layout?: 'GRID' | 'CAROUSEL' | 'SPOTLIGHT' | 'WALL' | 'FLOATING_BUBBLE',
   ) {
     return this.svc.widgetFeed(slug, layout)
   }

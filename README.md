@@ -1,4 +1,182 @@
-// README — key endpoints (MVP)
+// TrueTestify Backend (NestJS + Prisma + Postgres + AWS S3)
+
+## Setup (no Docker)
+
+1) Environment variables (create `.env` in backend root):
+
+Required:
+- PORT=3000
+- DATABASE_URL=postgresql://<user>:<pass>@<host>:5432/<db>?schema=public  (use AWS RDS endpoint)
+- FRONTEND_URL=https://your-frontend.example.com (or http://localhost:5173)
+- PUBLIC_API_BASE_URL=https://api.your-domain.com (or http://localhost:3000)
+- JWT_SECRET=your_secret
+- AWS_REGION=us-east-1
+- AWS_S3_BUCKET=your-bucket
+- AWS_ACCESS_KEY_ID=your-access-key
+- AWS_SECRET_ACCESS_KEY=your-secret
+- STRIPE_SECRET_KEY=sk_live_or_test
+- STRIPE_WEBHOOK_SECRET=whsec_xxx
+- STRIPE_PRICE_TIER_FREE=price_xxx
+- STRIPE_PRICE_TIER_STARTER=price_xxx
+- STRIPE_PRICE_TIER_PRO=price_xxx
+
+2) Install dependencies
+```
+npm ci
+```
+
+3) Database migrate + seed
+```
+npx prisma migrate deploy
+npx prisma db seed
+```
+
+4) Start API (dev)
+```
+npm run start:dev
+```
+
+5) Build and run (prod)
+```
+npm run build
+npm run start:prod
+```
+
+Swagger is available at `/api-docs`.
+
+## Application Flow (MVP)
+
+- Collection: Client requests `POST /storage/upload-url` → uploads video to S3 with signed URL → submits review via `POST /reviews/:tenantSlug` with `consent=true`, `videoS3Key`, `durationSec` (<= 60).
+- Moderation: Admin approves/rejects/hides via `PATCH /reviews/:id/moderate` (MEDIA or TEXT). Approved items appear in feeds.
+- Embed: Sites include `<script src="${PUBLIC_API_BASE_URL}/embed/script/:tenantSlug.js" data-truetestify data-layout="GRID"></script>`. The script injects an iframe that pulls `GET /embed/:tenantSlug/view?layout=...` and renders. Feed data also available at `GET /widgets/:tenantSlug`.
+- Analytics: Each embed view logs `WIDGET_VIEW`; submissions log `REVIEW_SUBMITTED`.
+- Billing: Stripe webhooks set tenant state to hide widgets on failed payments; daily cron cleans up after 12 months unpaid.
+
+## Testing with Postman
+
+Base URL: `http://localhost:3000`
+
+### Step 1: Create API Key for WordPress Integration
+POST `/api-keys`
+Body (JSON):
+```json
+{
+  "tenantId": "demo-co-tenant-id",
+  "userId": "demo-user-id"
+}
+```
+**Note:** To get the tenant ID, check the database or use the seed data. The demo tenant ID is created by the seed script.
+
+Response: `{ id, apiKey: "tt_xxxxxxxxx", tenantId }` - **Save this apiKey!**
+
+### Step 2: Test WordPress API Key Verification
+POST `/integrations/wordpress/verify-api-key`
+Body (JSON):
+```json
+{
+  "tenantSlug": "demo-co",
+  "apiKey": "tt_xxxxxxxxx"  // Use the apiKey from Step 1
+}
+```
+Expected: `{ ok: true }` if valid, `401 Unauthorized` if invalid.
+
+### Step 3: Create a Test Review (Text Only)
+POST `/reviews/demo-co`
+Body (JSON):
+```json
+{
+  "title": "Amazing Product!",
+  "authorName": "John Doe",
+  "authorEmail": "john@example.com",
+  "consent": true,
+  "text": "This product exceeded my expectations. Highly recommended!",
+  "durationSec": 0
+}
+```
+Response: `{ id: "review-id", status: "PENDING" }`
+
+### Step 4: Approve the Review
+PATCH `/reviews/review-id/moderate`
+Body (JSON):
+```json
+{
+  "action": "APPROVE",
+  "type": "TEXT"
+}
+```
+
+### Step 5: Test Widget Feed
+GET `/widgets/demo-co?layout=GRID`
+Expected: JSON with approved reviews.
+
+### Step 6: Test Embed Script
+GET `/embed/script/demo-co.js`
+Expected: JavaScript code that injects iframe.
+
+### Step 7: Test Embed View (This should now show content!)
+GET `/embed/demo-co/view?layout=GRID`
+Expected: HTML page with testimonials displayed.
+
+### Step 8: Test with Video Review (Optional)
+1. Get S3 upload URL:
+POST `/storage/upload-url`
+Body (JSON):
+```json
+{
+  "tenantSlug": "demo-co",
+  "contentType": "video/webm"
+}
+```
+Response: `{ key: "demo-co/videos/xxx.webm", url: "https://..." }`
+
+2. Upload video to the returned URL (PUT request with video file)
+
+3. Submit review with video:
+POST `/reviews/demo-co`
+Body (JSON):
+```json
+{
+  "title": "Video Review",
+  "authorName": "Jane Smith",
+  "consent": true,
+  "videoS3Key": "demo-co/videos/xxx.webm",
+  "durationSec": 30
+}
+```
+
+4. Approve video review:
+PATCH `/reviews/review-id/moderate`
+Body (JSON):
+```json
+{
+  "action": "APPROVE",
+  "type": "MEDIA"
+}
+```
+
+### Step 9: Test Different Layouts
+- `GET /embed/demo-co/view?layout=CAROUSEL`
+- `GET /embed/demo-co/view?layout=SPOTLIGHT`
+- `GET /embed/demo-co/view?layout=WALL`
+- `GET /embed/demo-co/view?layout=FLOATING_BUBBLE`
+
+### Step 10: Shopify Integration
+POST `/integrations/shopify/connect`
+Body (JSON):
+```json
+{
+  "tenantId": "demo-co-tenant-id",
+  "shopDomain": "mystore.myshopify.com",
+  "accessToken": "shpat_xxxxxxxxx"
+}
+```
+
+GET `/integrations/shopify/demo-co-tenant-id`
+DELETE `/integrations/shopify/integration-id`
+
+---
+
+// Endpoints quick list (reference)
 # Auth
 POST /auth/register { email, password, name?, tenantName }
 POST /auth/login { email, password }
@@ -18,6 +196,10 @@ GET /reviews/:tenantSlug/list?status=APPROVED
 
 # Widgets (public feed for <script> or <iframe>)
 GET /widgets/:tenantSlug?layout=GRID|CAROUSEL|SPOTLIGHT|FLOATING_BUBBLE
+
+# Embeds
+GET /embed/script/:tenantSlug.js
+GET /embed/:tenantSlug/view?layout=GRID|CAROUSEL|SPOTLIGHT|WALL|FLOATING_BUBBLE
 
 # Analytics
 POST /analytics { tenantId, type, meta? }

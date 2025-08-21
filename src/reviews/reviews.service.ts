@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { VideoAssetsService } from './media/video-assets.service';
 import { AudioAssetsService } from './media/audio-assets.service';
@@ -14,6 +14,14 @@ export class ReviewsService {
   async submit(slug: string, dto: any) {
     const tenant = await this.prisma.tenant.findUnique({ where: { slug } });
     if (!tenant) throw new NotFoundException('Tenant not found');
+
+    // Enforce consent and 60-second limit per MVP
+    if (!dto.consent) {
+      throw new BadRequestException('Consent is required to submit a review');
+    }
+    if (dto.durationSec && Number(dto.durationSec) > 60) {
+      throw new BadRequestException('Maximum allowed duration is 60 seconds');
+    }
 
     let videoId: string | undefined;
     if (dto.videoS3Key) {

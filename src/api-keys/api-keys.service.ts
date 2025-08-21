@@ -5,7 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class ApiKeysService {
   constructor(private prisma: PrismaService) {}
 
-  async createApiKey(data: { tenantId: string; key: string; userId: string; keyHash: string }) {
+  async createApiKey(data: { tenantId: string; userId: string; keyHash: string }) {
     return this.prisma.apiKey.create({ data });
   }
 
